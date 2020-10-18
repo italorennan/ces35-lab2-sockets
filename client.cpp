@@ -174,22 +174,22 @@ int main (int argc, char* argv[]){
 
 		std::string statusResponse = response.substr(9,3);
 		std::string statusResponseDigit = response.substr(9,1);
-		intDigit = std::stoi(statusResponseDigit);
+		int intDigit = std::stoi(statusResponseDigit);
 		if(intDigit == 4){
 			std::cout << "ERRO CÓDIGO: " << statusResponse << std::endl;
 			return 4;
 		}
 
-		if(intDigit == 3{
+		if(intDigit == 3){
 			std::cout << "ARQUIVO MOVIDO CÓDIGO: " << statusResponse << std::endl;
 			return 3;
 		}
 
-		if(initDigit == 2){
+		if(intDigit == 2){
 			std::cout << "Arquivo Encontrado" << std::endl;
 			std::ofstream out(file);
 			out << response;
-			out.close;
+			out.close();
 			
 		}
 	}
