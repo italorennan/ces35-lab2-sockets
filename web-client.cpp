@@ -12,6 +12,14 @@
 #include <sstream>
 #include <fstream>
 
+#define BUFFER_SIZE 256
+
+struct httpFullResponse{
+
+	HTTPRes httpResponse;
+	string file;
+};
+
 //Função que retorna o endereço de um dado hostname
 std::string getAddress(std::string hostname){
 	
@@ -44,13 +52,14 @@ std::string getAddress(std::string hostname){
 	return ipString;
 }
 
-std::string serverRequest(std::string address, std::string port, std::string request){
+struct httpFullResponse serverRequest(std::string address, std::string port, std::string request){
 	
 	//Definindo o socket que foi passado como argumento 
 	int socketfd = socket(AF_INET,SOCK_STREAM,0);
 	std::cout << port << std::endl;
 	int portInt = std::stoi(port);
 
+	struct httpFullResponse fullResponse
 
 	struct sockaddr_in serverAddr;
 
@@ -78,10 +87,15 @@ std::string serverRequest(std::string address, std::string port, std::string req
 	//Recebendo o request do cliente
 	std::string response;
 	std::stringstream responseStream;
-	unsigned char buffer[20] = {0};
+	std::string fileString;
+	std::stringstreamm fileStream
+	unsigned char buffer[BUFFER_SIZE] = {0};
 	bool receivedMessage = false;
-
-	//Recebendo mensagem 
+	bool receivedFile = false;
+	HTTPRes httpRes;
+	
+	
+	//Recebendo mensagem HTTP
 	while(!receivedMessage){
 	
 		memset(buffer,'\0',sizeof(buffer));
@@ -89,19 +103,50 @@ std::string serverRequest(std::string address, std::string port, std::string req
 		//Tentando receber a mensagem do servidor
 		if(recv(socketfd,buffer,20,0)==-1){
 			std::cerr << "ERRO: Nao recebi a mensagem do servidor" << std::endl;
-			return UM;
+			return fullResponse;
 		}
 
 		//Pega o conteudo que foi recebido e colocando na resposta
 		responseStream << buffer;
-		response = (char*) buffer;
+		response = responseStream.str();
 
-		if(response.length() == 0)
-			break;
+		if(response.find("\r\n\r\n") != string::npos){
+			httpRes.parse(response);
+			break;	
+		}
 	}
 
-	response = responseStream.str();
-	return response;
+	int numeroChar = httpRes.getLength()
+	fileString = response.substr(response.find("\r\n\r\n")+4);
+	fileStream << fileString
+
+	numeroChar = numeroChar - fileString.length();
+	
+	while(numeroChar > 0){
+		memset(buffer,'\0',sizeof(buffer));
+
+		//Tentando receber a mensagem do servidor
+		if(recv(socketfd,buffer,20,0)==-1){
+			std::cerr << "ERRO: Nao recebi a mensagem do servidor" << std::endl;
+			return fullResponse;
+		}
+		if(numeroChar > BUFFER_SIZE){
+			for(int i = 0; < numeroChar; i++)
+				fileStream << buffer[i];	
+			numeroChar = 0;
+		}
+
+		else{
+			fileStream << buffer;
+			numeroChar = numeroChar - BUFFER_SIZE;
+		}	
+	}
+
+	fullResponse.file = fileStream.str();
+	fullResponse.httpResponse = httpRes;
+
+	
+	return fullResponse;
 }
 
 int main (int argc, char* argv[]){
@@ -110,6 +155,7 @@ int main (int argc, char* argv[]){
 	std::string requestUrl; 
 	std::string HTTP = "http://";
 	HTTPReq request;
+	struct httpFullResponse fullResponse;
 	//Vamos checar se algum argumento foi passado como argumento
 	//Se nenhum argumento foi passado, vamos retornar erro
 
@@ -167,33 +213,21 @@ int main (int argc, char* argv[]){
 
 		//Realizando o request
 		std::cout << port << std::endl;
-		std::string response = serverRequest(addressString,port,requestString);
-		if(response == UM)
-			return 1;
+		fullResponse = serverRequest(addressString,port,requestString);
 
-
-		std::string statusResponse = response.substr(9,3);
-		std::string statusResponseDigit = response.substr(9,1);
-
-		int intDigit = std::stoi(statusResponseDigit);
-		if(intDigit == 4){
-			std::cout << "ERRO CÓDIGO: " << statusResponse << std::endl;
-			return 4;
-		}
-
-		if(intDigit == 3){
-			std::cout << "ARQUIVO MOVIDO CÓDIGO: " << statusResponse << std::endl;
-			return 3;
-		}
-
-		if(intDigit == 2){
+		status = fullResponse.httpResponse.getStatus();
+		if(status == 200){
 			std::cout << "Arquivo Encontrado" << std::endl;
 			std::ofstream out(file);
-			std::string fileString = response.substr(response.find("\r\n\r\n")+4);
-			out << response;
-			out.close();
-			
+			out << fullResponse.file;
+			out.close;
 		}
+		
+		else{
+			std::cerr << "ERRO: Arquivo nao encontrado";
+			return 1;
+		}
+
 	}
 
 	return 0;
