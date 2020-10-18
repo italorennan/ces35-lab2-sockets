@@ -10,6 +10,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <sstream>
+#include <fstream>
 
 //Função que retorna o endereço de um dado hostname
 std::string getAddress(std::string hostname){
@@ -144,6 +145,7 @@ int main (int argc, char* argv[]){
 			j++;
 		}
 
+		j++;
 		//O final da url é o arquivo que temos que fazer a requisição para o servidor
 		std::string file = requestUrl.substr(j);
 
@@ -169,8 +171,27 @@ int main (int argc, char* argv[]){
 		if(response == UM)
 			return 1;
 
-		std::cout << response;
 
+		std::string statusResponse = response.substr(9,3);
+		std::string statusResponseDigit = response.substr(9,1);
+		intDigit = std::stoi(statusResponseDigit);
+		if(intDigit == 4){
+			std::cout << "ERRO CÓDIGO: " << statusResponse << std::endl;
+			return 4;
+		}
+
+		if(intDigit == 3{
+			std::cout << "ARQUIVO MOVIDO CÓDIGO: " << statusResponse << std::endl;
+			return 3;
+		}
+
+		if(initDigit == 2){
+			std::cout << "Arquivo Encontrado" << std::endl;
+			std::ofstream out(file);
+			out << response;
+			out.close;
+			
+		}
 	}
 
 	return 0;
