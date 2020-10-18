@@ -78,7 +78,7 @@ std::string serverRequest(std::string address, std::string port, std::string req
 	//Recebendo o request do cliente
 	std::string response;
 	std::stringstream responseStream;
-	char buffer[20] = {0};
+	unsigned char buffer[20] = {0};
 	bool receivedMessage = false;
 
 	//Recebendo mensagem 
@@ -158,7 +158,7 @@ int main (int argc, char* argv[]){
 
 		//Vamos setar os parametros do request que será feito
 		request.setMethod("GET");
-		request.setURL(requestUrl);
+		request.setURL(file);
 		request.setHost(addressString);
 
 
@@ -174,6 +174,7 @@ int main (int argc, char* argv[]){
 
 		std::string statusResponse = response.substr(9,3);
 		std::string statusResponseDigit = response.substr(9,1);
+
 		int intDigit = std::stoi(statusResponseDigit);
 		if(intDigit == 4){
 			std::cout << "ERRO CÓDIGO: " << statusResponse << std::endl;
@@ -188,6 +189,7 @@ int main (int argc, char* argv[]){
 		if(intDigit == 2){
 			std::cout << "Arquivo Encontrado" << std::endl;
 			std::ofstream out(file);
+			std::string fileString = response.substr(response.find("\r\n\r\n")+4);
 			out << response;
 			out.close();
 			
