@@ -39,6 +39,53 @@ std::string getAddress(std::string hostname, std::string port){
 	return ipString;
 }
 
+std::string serverRequest(std::string address, std::string port, std::string request){
+	
+	//Definindo o socket que foi passado como argumento 
+	int socketfd = socket(AF_INET,SOCK_STREAM,0);
+	portInt = std::stoi(port);
+
+	struct sockaddr_in serverAddr;
+
+	//Conectando o socket do servidor
+	serverAddr.sin_family = AF_INET;
+	serverAddr.sin_port = htons(portInt);
+	serverAddr.sin_addr.s_addr = inet_addr(address);
+	memset(serverAddr.sin_zero, '\0', sizeof(serverAddr.sin_zero));
+
+	//Testando se a conexão é bem sucetível
+	if (connect(socketfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
+		std::cerr << "ERRO: Nao foi possivel conectar no socket" << std::endl;
+	    	return 1;
+	}
+	
+	
+	//Enviando o request para o cliente
+	if(send(socketfd,request.c_str(),request.size(),0) == -1){
+		std::cerr << "ERRO: Nao foi possivel enviar o request ao socket" << std::endl;
+		return 1;
+	}
+
+	//Recebendo o request do cliente
+	std::string response;
+	std::stringstream ss;
+	char buffer[20] = {0}
+	bool receivedMessage = false;
+
+	//Recebendo mensagem 
+	while(!receivedMessage){
+	
+		memset(buffer,'\0',sizeof(buffer));
+
+		if(recv(socketfd,bu,20,0)==-1){
+			std::cerr << "ERRO: Nao conseguimos receber a mensagem do servidor";
+			return 1;
+		}
+
+	}
+
+}
+
 int main (int argc, char* argv[]){
 	//Definindo a string para ler os argumnetos
 	std::string requestUrl 
@@ -78,14 +125,21 @@ int main (int argc, char* argv[]){
 		std::string file = hostname.substr(j,requestUrl.length()-1);
 
 		//Achando o endereço IP do hostname
-		std::string ipString = getAddress(hostname);
+		std::string addressString = getAddress(hostname);
 	
 		//Vamos setar os parametros do request que será feito
 		request.setMethod("URL");
 		request.setURL(requestUrl);
-		request.setHost(ipString);
+		request.setHost(addressString);
 
+
+		//Achando a string que, dados os parametros, faz o request
 		std::string requestString = request.makeRequest();
+
+
+		//Realizando o request
+		std::string response = serverRequest(addressString,port,requestString);
+
 
 
 	}
