@@ -94,7 +94,7 @@ std::string serverRequest(std::string address, std::string port, std::string req
 
 		//Pega o conteudo que foi recebido e colocando na resposta
 		responseStream << buffer;
-		response = buffer;
+		response = (char*) buffer;
 
 		if(response.length() == 0)
 			break;
