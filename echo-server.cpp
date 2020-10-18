@@ -16,18 +16,49 @@
 #include <iostream>
 #include <sstream>
 
-const int MAX_BYTES=200;
 
-// Estabelecer conexão em multithread
-int connection(int clientSockfd) {
+const int MAX_BYTES=200;
+std::string nome_host_aux="localhost";
+int port=3000;
+std::string nome_host=nome_host_aux+":"+std::to_string(port);
+std::string pasta_temporaria="temp/";
+
+void enviar_mensagem(int clientSockfd,std::string mensagem)
+{
+    unsigned char* mensagem_unsigned= new unsigned char[mensagem.length()];
+
+    for(int i=0; i<mensagem.length(); i++)
+    {
+        mensagem_unsigned[i]=(unsigned char) mensagem[i];
+
+    }
+    // envia de volta o buffer recebido como um echo
+    std::cout<<"O que vou enviar:"<<std::endl;
+
+    std::cout<<mensagem_unsigned<<std::endl;
+    if (send(clientSockfd, mensagem_unsigned, MAX_BYTES, 0) == -1)
+    {
+        perror("send");
+    }
+}
+
+
+int connection(int clientSockfd)
+{
+
     // faz leitura e escrita dos dados da conexao
     // utiliza um buffer de 20 bytes (char)
     bool isEnd = false;
     char buf[MAX_BYTES] = {0};
     unsigned char* unsigned_buf= new unsigned char[sizeof(buf)];
 
+
     std::ifstream arquivo;
     std::stringstream  leitura_arquivo;
+
+
+
+
 
     while (!isEnd)
     {
@@ -40,33 +71,37 @@ int connection(int clientSockfd) {
             perror("recv");
             return 5;
         }
-        /*for (int i = 0; i < sizeof(buf); i++)
-        {
-            unsigned_buf[i] = (unsigned char) buf[i];
-        }*/
 
 
         HTTPReq request;
         request.parse(unsigned_buf);
 
         HTTPRes response;
-        response.setServer(request.getHost());
+        response.setServer(nome_host);
 
-        arquivo.open(request.getURL());
+        arquivo.open(pasta_temporaria+request.getURL());
 
         if(arquivo)
+        {
             response.setStatus(200);
+            leitura_arquivo << arquivo.rdbuf(); //read the file
+            std::string mensagem = leitura_arquivo.str(); //str holds the content of the file
+            response.setLength(mensagem.length());
+        }
         else
-            response.setStatus(404);
+        {
 
-        std::cout<<response.getStatus()<<std::endl;
+            response.setStatus(404);
+        }
+
 
         unsigned_buf= response.encode();
+        std::cout<<"O que vou enviar:"<<std::endl;
 
-        for (int i = 0; i < sizeof(unsigned_buf); i++)
-        {
-            buf[i] = (char) unsigned_buf[i];
-        }
+        std::cout<<unsigned_buf<<std::endl;
+
+
+
 
         if (send(clientSockfd, unsigned_buf, MAX_BYTES, 0) == -1)
         {
@@ -75,27 +110,21 @@ int connection(int clientSockfd) {
         }
 
 
+
         if(arquivo)
         {
-            leitura_arquivo << arquivo.rdbuf(); //read the file
-            std::string mensagem = leitura_arquivo.str(); //str holds the content of the file
-            std::cout<<"O QUE ELE VAI ENVIAR: ";
-            std::cout<<mensagem<<std::endl;
 
-            if (send(clientSockfd, mensagem.c_str(), mensagem.size(), 0) == -1) {
-            perror("send");
-            return 7;
-            }
-
+            enviar_mensagem(clientSockfd,leitura_arquivo.str());
         }
 
 
     }
     close(clientSockfd);
+    return 0;
 }
-
 int main()
 {
+
     // cria um socket para IPv4 e usando protocolo de transporte TCP
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -136,17 +165,18 @@ int main()
         return 3;
     }
 
-    // Estabelecer conexoes TCP em loop infinito, ate o processo ser encerrado
-    while(true) {
-        // aceitar a conexao TCP
-        // verificar que sockfd e clientSockfd sao sockets diferentes
-        // sockfd eh a "socket de boas vindas"
-        // clientSockfd eh a "socket diretamente com o cliente"
+    // aceitar a conexao TCP
+    // verificar que sockfd e clientSockfd sao sockets diferentes
+    // sockfd eh a "socket de boas vindas"
+    // clientSockfd eh a "socket diretamente com o cliente"
+    while (true)
+    {
         struct sockaddr_in clientAddr;
         socklen_t clientAddrSize = sizeof(clientAddr);
-        int clientSockfd = accept(sockfd, (struct sockaddr*)&clientAddr, &clientAddrSize);    
+        int clientSockfd = accept(sockfd, (struct sockaddr*)&clientAddr, &clientAddrSize);
 
-        if (clientSockfd == -1) {
+        if (clientSockfd == -1)
+        {
             perror("accept");
             return 4;
         }
@@ -155,11 +185,8 @@ int main()
         char ipstr[INET_ADDRSTRLEN] = {'\0'};
         inet_ntop(clientAddr.sin_family, &clientAddr.sin_addr, ipstr, sizeof(ipstr));
         std::cout << "Accept a connection from: " << ipstr << ":" <<
-                ntohs(clientAddr.sin_port) << std::endl;    
-
-        // Criar thread para nova conexão TCP
+                  ntohs(clientAddr.sin_port) << std::endl;
         std::thread(connection, clientSockfd).detach();
     }
-
     return 0;
 }
