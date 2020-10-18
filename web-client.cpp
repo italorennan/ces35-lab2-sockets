@@ -17,7 +17,7 @@
 struct httpFullResponse{
 
 	HTTPRes httpResponse;
-	string file;
+	std::string file;
 };
 
 //Função que retorna o endereço de um dado hostname
@@ -59,7 +59,7 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 	std::cout << port << std::endl;
 	int portInt = std::stoi(port);
 
-	struct httpFullResponse fullResponse
+	struct httpFullResponse fullResponse;
 
 	struct sockaddr_in serverAddr;
 
@@ -74,21 +74,21 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 	//Testando se a conexão é bem sucedida
 	if (connect(socketfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
 		std::cerr << "ERRO: Nao foi possivel conectar no socket" << std::endl;
-	    	return UM;
+	    	return fullResponse;
 	}
 	
 	
 	//Enviando o request para o cliente
 	if(send(socketfd,request.c_str(),request.size(),0) == -1){
 		std::cerr << "ERRO: Nao foi possivel enviar o request ao socket" << std::endl;
-		return UM;
+		return fullResponse;
 	}
 
 	//Recebendo o request do cliente
 	std::string response;
 	std::stringstream responseStream;
 	std::string fileString;
-	std::stringstreamm fileStream
+	std::stringstream fileStream;
 	unsigned char buffer[BUFFER_SIZE] = {0};
 	bool receivedMessage = false;
 	bool receivedFile = false;
@@ -110,15 +110,15 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 		responseStream << buffer;
 		response = responseStream.str();
 
-		if(response.find("\r\n\r\n") != string::npos){
-			httpRes.parse(response);
+		if(response.find("\r\n\r\n") != std::string::npos){
+			httpRes.parse((unsigned char*)response.c_str());
 			break;	
 		}
 	}
 
-	int numeroChar = httpRes.getLength()
+	int numeroChar = httpRes.getLength();
 	fileString = response.substr(response.find("\r\n\r\n")+4);
-	fileStream << fileString
+	fileStream << fileString;
 
 	numeroChar = numeroChar - fileString.length();
 	
@@ -131,7 +131,7 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 			return fullResponse;
 		}
 		if(numeroChar > BUFFER_SIZE){
-			for(int i = 0; < numeroChar; i++)
+			for(int i = 0; i<numeroChar; i++)
 				fileStream << buffer[i];	
 			numeroChar = 0;
 		}
@@ -215,12 +215,13 @@ int main (int argc, char* argv[]){
 		std::cout << port << std::endl;
 		fullResponse = serverRequest(addressString,port,requestString);
 
-		status = fullResponse.httpResponse.getStatus();
-		if(status == 200){
+		std::string status = fullResponse.httpResponse.getStatus();
+		std::string DUZENTOS = "200";
+		if(status == DUZENTOS){
 			std::cout << "Arquivo Encontrado" << std::endl;
 			std::ofstream out(file);
 			out << fullResponse.file;
-			out.close;
+			out.close();
 		}
 		
 		else{
