@@ -8,88 +8,63 @@
 #include <unistd.h>
 #include <fstream>
 #include <thread>
+#include <iostream>
+#include <sstream>
 
 #include "HTTPReq.hpp"
 #include "HTTPRes.hpp"
 
+const int MAX_BYTES = 200;
+std::string nome_host_aux = "localhost";
+int port = 40000;
+std::string nome_host = nome_host_aux + ":" + std::to_string(port);
+std::string pasta_temporaria = "temp/";
 
-#include <iostream>
-#include <sstream>
+void enviar_mensagem(int clientSockfd, unsigned char* mensagem, long int size) {
+    int num_partes = size/MAX_BYTES;
+    int modulo = size - num_partes*MAX_BYTES;
+    int minimo, maximo;
+    unsigned char* mensagem_unsigned = new unsigned char[MAX_BYTES];
 
-
-const int MAX_BYTES=200;
-const int aceitacao_maxima_client=20;
-std::string nome_host_aux="localhost";
-int port=3000;
-std::string nome_host=nome_host_aux+":"+std::to_string(port);
-std::string pasta_temporaria="temp/";
-
-void enviar_mensagem(int clientSockfd,std::string mensagem)
-{
-
-    int num_partes=mensagem.length()/aceitacao_maxima_client;
-    int modulo=mensagem.length()-num_partes*aceitacao_maxima_client;
-    int minimo,maximo;
-    std::string aux_mensagem;
-    for(int i=0; i<num_partes+1; i++)
-    {
-        if(modulo!=0 || i!=num_partes)
-        {
-            unsigned char* mensagem_unsigned= new unsigned char[aceitacao_maxima_client];
-
-            minimo=i*aceitacao_maxima_client;
-            if(i!=num_partes)
-                maximo=(i+1)*aceitacao_maxima_client-1;
+    for (int i = 0; i < num_partes+1; i++) {
+        memset(mensagem_unsigned,'\0',MAX_BYTES);
+        
+        std::cout << "Enviando " << i+1 << " de " << num_partes+1 << " partes do arquivo..." << std::endl;
+    
+        if (modulo != 0 || i != num_partes) {
+            minimo = i*MAX_BYTES;
+            if(i != num_partes) 
+                maximo = (i+1)*MAX_BYTES-1;
             else
-                maximo=mensagem.length()-1;
+                maximo = size-1;
 
-            std::string aux_mensagem=mensagem.substr(minimo,maximo-minimo+1);
-            std::cout<<aux_mensagem.length()<<std::endl;
-
-            for(int j=0; j<=aux_mensagem.length(); j++)
-            {
-                mensagem_unsigned[j]=(unsigned char)aux_mensagem[j];
-            }
+            for (int j = 0; j <= (maximo - minimo); j++)
+                mensagem_unsigned[j] = mensagem[minimo + j];
 
             // envia de volta o buffer recebido como um echo
-            std::cout<<"O que vou enviar:"<<std::endl;
-
-            std::cout<<mensagem_unsigned<<std::endl;
-            if (send(clientSockfd, mensagem_unsigned, aceitacao_maxima_client, 0) == -1)
-            {
+            if (send(clientSockfd, mensagem_unsigned, MAX_BYTES, 0) == -1) {
                 perror("send");
             }
-
         }
 
+        std::cout << "Arquivo enviado com sucesso." << std::endl << std::endl;
     }
 
-
-
+    delete[] mensagem_unsigned;
 }
 
-
-int connection(int clientSockfd)
-{
-
+int connection(int clientSockfd) {
     // faz leitura e escrita dos dados da conexao
     // utiliza um buffer de 20 bytes (char)
     bool isEnd = false;
     char buf[MAX_BYTES] = {0};
-    unsigned char* unsigned_buf= new unsigned char[sizeof(buf)];
+    unsigned char* unsigned_buf = new unsigned char[sizeof(buf)];
 
+    FILE * arquivo;
 
-    std::ifstream arquivo;
-    std::stringstream  leitura_arquivo;
-
-
-
-
-
-    while (!isEnd)
-    {
+    while (!isEnd) {
         // zera a memoria do buffer
-        memset(buf, '\0', sizeof(buf));
+        memset(unsigned_buf, '\0', sizeof(unsigned_buf));
 
         // recebe ate MAX_BYTES bytes do cliente remoto
         if (recv(clientSockfd, unsigned_buf, MAX_BYTES, 0) == -1)
@@ -98,65 +73,70 @@ int connection(int clientSockfd)
             return 5;
         }
 
+        if (unsigned_buf[0] != '\0') {
+            HTTPReq request;
+            request.parse(unsigned_buf);
 
-        HTTPReq request;
-        request.parse(unsigned_buf);
+            HTTPRes response;
+            response.setServer(nome_host);
 
-        HTTPRes response;
-        response.setServer(nome_host);
+            std::string name;
 
-        if(request.getURL()=="/")
-        {
-            printf("Index");
-            arquivo.open(pasta_temporaria+"index.html");
+            if(request.getURL() == "") {
+                name = pasta_temporaria + "index.html";
+            }
+            else {
+                name = pasta_temporaria + request.getURL();
+            }
 
+            // Abrir arquivo
+            int nameSize = name.length();
+            char* fileName = new char[name.length()];
+            for (int i = 0; i < nameSize; i++)
+                fileName[i] = name[i];
+            arquivo = fopen(fileName, "rb");
+
+            unsigned char * mensagem;
+            long int size = 0;
+
+            if(arquivo != NULL) {
+                response.setStatus(200);
+                
+                fseek(arquivo, 0, SEEK_END);
+                size = ftell(arquivo);
+
+                response.setLength(size);
+                fclose(arquivo);
+
+                arquivo = fopen(fileName, "rb");
+                mensagem = new unsigned char [size];
+                fread(mensagem, sizeof(unsigned char), size, arquivo);
+            }
+            else {
+                response.setStatus(404);
+            }
+
+            unsigned_buf = response.encode();
+            std::cout << "Response:" << std::endl;
+            std::cout << unsigned_buf << std::endl;
+
+            if (send(clientSockfd, unsigned_buf, MAX_BYTES, 0) == -1) {
+                perror("send");
+                return 6;
+            }
+
+            if(arquivo != NULL) {
+                enviar_mensagem(clientSockfd, mensagem, size);
+                delete[] mensagem;
+                fclose(arquivo);
+            }
         }
-        else
-        {
-            arquivo.open(pasta_temporaria+request.getURL());
-        }
-
-        if(arquivo)
-        {
-            response.setStatus(200);
-            leitura_arquivo << arquivo.rdbuf(); //read the file
-            std::string mensagem = leitura_arquivo.str(); //str holds the content of the file
-            response.setLength(mensagem.length());
-        }
-        else
-        {
-
-            response.setStatus(404);
-        }
-
-
-        unsigned_buf= response.encode();
-        std::cout<<"O que vou enviar:"<<std::endl;
-
-        std::cout<<unsigned_buf<<std::endl;
-
-
-
-
-        if (send(clientSockfd, unsigned_buf, MAX_BYTES, 0) == -1)
-        {
-            perror("send");
-            return 6;
-        }
-
-
-
-        if(arquivo)
-        {
-
-            enviar_mensagem(clientSockfd,leitura_arquivo.str());
-        }
-
-
     }
+
     close(clientSockfd);
     return 0;
 }
+
 int main()
 {
 
@@ -221,6 +201,8 @@ int main()
         inet_ntop(clientAddr.sin_family, &clientAddr.sin_addr, ipstr, sizeof(ipstr));
         std::cout << "Accept a connection from: " << ipstr << ":" <<
                   ntohs(clientAddr.sin_port) << std::endl;
+
+        // Criar conexões em multithread
         std::thread(connection, clientSockfd).detach();
     }
     return 0;

@@ -12,12 +12,12 @@
 #include <sstream>
 #include <fstream>
 
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 200
 
 struct httpFullResponse{
 
 	HTTPRes httpResponse;
-	std::string file;
+	unsigned char* file;
 };
 
 //Função que retorna o endereço de um dado hostname
@@ -89,11 +89,10 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 	std::stringstream responseStream;
 	std::string fileString;
 	std::stringstream fileStream;
+	unsigned char * mensagem;
 	unsigned char buffer[BUFFER_SIZE] = {0};
 	bool receivedMessage = false;
-	bool receivedFile = false;
 	HTTPRes httpRes;
-	
 	
 	//Recebendo mensagem HTTP
 	while(!receivedMessage){
@@ -101,7 +100,7 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 		memset(buffer,'\0',sizeof(buffer));
 
 		//Tentando receber a mensagem do servidor
-		if(recv(socketfd,buffer,20,0)==-1){
+		if(recv(socketfd,buffer,BUFFER_SIZE,0)==-1){
 			std::cerr << "ERRO: Nao recebi a mensagem do servidor" << std::endl;
 			return fullResponse;
 		}
@@ -117,34 +116,36 @@ struct httpFullResponse serverRequest(std::string address, std::string port, std
 	}
 
 	int numeroChar = httpRes.getLength();
-	fileString = response.substr(response.find("\r\n\r\n")+4);
-	fileStream << fileString;
 
-	numeroChar = numeroChar - fileString.length();
+	mensagem = new unsigned char[numeroChar];
+	int read = 0;
 	
-	while(numeroChar > 0){
+	while(read < numeroChar){
 		memset(buffer,'\0',sizeof(buffer));
 
 		//Tentando receber a mensagem do servidor
-		if(recv(socketfd,buffer,20,0)==-1){
+		int received = recv(socketfd, buffer, BUFFER_SIZE, 0);
+
+		//if(recv(socketfd,buffer,BUFFER_SIZE,0)==-1){
+		if (received == -1) {
 			std::cerr << "ERRO: Nao recebi a mensagem do servidor" << std::endl;
 			return fullResponse;
 		}
-		if(numeroChar > BUFFER_SIZE){
-			for(int i = 0; i<numeroChar; i++)
-				fileStream << buffer[i];	
-			numeroChar = 0;
-		}
 
 		else{
-			fileStream << buffer;
-			numeroChar = numeroChar - BUFFER_SIZE;
-		}	
+			for (int i = 0; i < received; i++) {
+				if (read < numeroChar) {
+					mensagem[read] = buffer[i];
+					read++;
+				}
+			}
+		}
 	}
 
-	fullResponse.file = fileStream.str();
+	fullResponse.file = mensagem;
 	fullResponse.httpResponse = httpRes;
 
+	std::cout << httpRes.makeResponse() << std::endl;
 	
 	return fullResponse;
 }
@@ -180,8 +181,6 @@ int main (int argc, char* argv[]){
 		std::string hostname = "";
 		for(j = 7; requestUrl[j] != ':'; j++)
 			hostname+= requestUrl[j];
-		
-		std::cout << hostname << std::endl;
 
 		j++;
 		//Agora, vamos pegar o valor da porta
@@ -194,7 +193,7 @@ int main (int argc, char* argv[]){
 		j++;
 		//O final da url é o arquivo que temos que fazer a requisição para o servidor
 		std::string file = requestUrl.substr(j);
-
+		if (file.length() == 0) file = "index.html";
 
 		//Achando o endereço IP do hostname
 		std::string addressString = getAddress(hostname);
@@ -212,16 +211,24 @@ int main (int argc, char* argv[]){
 		std::string requestString = request.makeRequest();
 
 		//Realizando o request
-		std::cout << port << std::endl;
 		fullResponse = serverRequest(addressString,port,requestString);
 
 		std::string status = fullResponse.httpResponse.getStatus();
-		std::string DUZENTOS = "200";
+		std::string DUZENTOS = "200 OK";
 		if(status == DUZENTOS){
 			std::cout << "Arquivo Encontrado" << std::endl;
-			std::ofstream out(file);
-			out << fullResponse.file;
-			out.close();
+
+			std::string name = "receive/" + file;
+			int nameSize = name.length();
+			char* fileName = new char[name.length()];
+            for (int i = 0; i < nameSize; i++)
+                fileName[i] = name[i];
+
+			FILE * arquivo = fopen(fileName, "wb");
+			fwrite(fullResponse.file, sizeof(unsigned char), fullResponse.httpResponse.getLength(), arquivo);
+			fclose(arquivo);
+
+			delete[] fileName;
 		}
 		
 		else{

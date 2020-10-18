@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <link rel="stylesheet" href="index.css">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <script src="index.js"></script>
+    </head>
+
+    <body>
+        <h1>CES-26: Série de Exercícios 4</h1>
+        <h2>Ítalo Rennan Lima Silva</h2>
+        <h2>COMP-21</h2>
+
+        <p>
+            Nessa página, uma série de informações pode ser enviada para o servidor, seguindo os seguintes passos:<br><br>
+            1 - Preencher o formulário. Ao enviar, será carregado na tela um texto em formato JSON.<br>
+            2 - Salvar o texto exibido em um arquivo ".json".<br>
+            3 - Enviar o arquivo JSON através do botão de envio de arquivos.<br><br>
+            Os dados serão salvos no servidor e exibidos na parte inferior da tela.<br>
+            Caso o arquivo JSON não seja enviado, a informação exibida será a que está salva de forma padrão.
+        </p>
+
+        <h3>Formulário</h3>
+
+        <form action="http://localhost:5000/getForm" method="GET">
+            Nome: <input type="text" name="nome"><br><br>
+            Idade: <input type="number" name="idade"><br><br>
+            Curso: <input type="text" name="curso"><br><br>
+            Cidade: <input type="text" name="cidade"><br><br>
+            <input type="submit" value="Enviar">
+        </form>
+
+        <h4>Selecione o arquivo JSON a ser enviado ao servidor:</h4>
+
+        <form action="http://localhost:5000/postFile" method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".json">
+            <input type="submit" value="Enviar">
+        </form>
+
+        <h4>Pressione o botão abaixo para exibição das informações carregadas:</h4>
+
+        <button id="exibir">Exibir</button>
+
+        <div id="infos"><br>As informações serão exibidas aqui.</div>
+    </body>
+</html>
