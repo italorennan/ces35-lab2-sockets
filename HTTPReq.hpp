@@ -24,7 +24,6 @@ class HTTPReq {
         void setHost(std::string host);
         
         std::string makeRequest();
-        //void encode(unsigned char** bytecode);
         unsigned char* encode();
         void parse(unsigned char* bytecode);
 };
@@ -67,9 +66,11 @@ unsigned char* HTTPReq::encode() {
     int size = text.size();
     unsigned char* request = new unsigned char[size];
 
-    for (int i = 0; i < size; i++) {
+    int i;
+    for (i = 0; i < size; i++) {
         request[i] = (unsigned char) text[i];
     }
+    request[i] = '\0';
 
     return request;
 }
@@ -97,11 +98,10 @@ void HTTPReq::parse(unsigned char* bytecode) {
         i++;
     }
     setURL(aux);
-    i++;
     aux = "";
 
     // Obter host
-    i += 16;
+    i += 17;
     while(request[i] != '\r') {
         aux += request[i];
         i++;
