@@ -73,8 +73,6 @@ unsigned char* HTTPRes::encode() {
     int size = text.size();
     unsigned char* response = new unsigned char[size];
 
-    //std::cout << "Teste" << std::endl << text[8] << std::endl;
-
     int i;
     for (i = 0; i < size; i++) {
         response[i] = (unsigned char) text[i];
