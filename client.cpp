@@ -20,6 +20,7 @@ std::string getAddress(std::string hostname){
 	std::string ipString;
 	std::string UM;
 
+	memset(&hints,0,sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 
@@ -46,7 +47,9 @@ std::string serverRequest(std::string address, std::string port, std::string req
 	
 	//Definindo o socket que foi passado como argumento 
 	int socketfd = socket(AF_INET,SOCK_STREAM,0);
+	std::cout << port << std::endl;
 	int portInt = std::stoi(port);
+
 
 	struct sockaddr_in serverAddr;
 
@@ -119,7 +122,7 @@ int main (int argc, char* argv[]){
 		requestUrl = argv[i];
 
 		//Vamos checar se o request começa com a tag http
-		std::string tagInicial = requestUrl.substr(0,6);
+		std::string tagInicial = requestUrl.substr(0,7);
 		if(not(tagInicial == HTTP)){
 			std::cerr << "ERRO: O request nao comeca com a tag http://" << std::endl;
 			return 1;
@@ -131,13 +134,19 @@ int main (int argc, char* argv[]){
 		for(j = 7; requestUrl[j] != ':'; j++)
 			hostname+= requestUrl[j];
 		
+		std::cout << hostname << std::endl;
+
+		j++;
 		//Agora, vamos pegar o valor da porta
 		std::string port = "";
-		for(;requestUrl[j] != '/';j++)
+		while(requestUrl[j] != '/'){
 			port+=requestUrl[j];
+			j++;
+		}
 
 		//O final da url é o arquivo que temos que fazer a requisição para o servidor
-		std::string file = hostname.substr(j,requestUrl.length()-1);
+		std::string file = requestUrl.substr(j);
+
 
 		//Achando o endereço IP do hostname
 		std::string addressString = getAddress(hostname);
@@ -145,9 +154,8 @@ int main (int argc, char* argv[]){
 			return 1;
 
 
-		
 		//Vamos setar os parametros do request que será feito
-		request.setMethod("URL");
+		request.setMethod("GET");
 		request.setURL(requestUrl);
 		request.setHost(addressString);
 
@@ -156,14 +164,15 @@ int main (int argc, char* argv[]){
 		std::string requestString = request.makeRequest();
 
 		//Realizando o request
+		std::cout << port << std::endl;
 		std::string response = serverRequest(addressString,port,requestString);
 		if(response == UM)
 			return 1;
 
 		std::cout << response;
 
-		return 0;
-
 	}
+
+	return 0;
 }
 
