@@ -18,6 +18,7 @@
 
 
 const int MAX_BYTES=200;
+const int aceitacao_maxima_client=20;
 std::string nome_host_aux="localhost";
 int port=3000;
 std::string nome_host=nome_host_aux+":"+std::to_string(port);
@@ -25,21 +26,41 @@ std::string pasta_temporaria="temp/";
 
 void enviar_mensagem(int clientSockfd,std::string mensagem)
 {
-    unsigned char* mensagem_unsigned= new unsigned char[mensagem.length()];
 
-    for(int i=0; i<mensagem.length(); i++)
+    int num_partes=mensagem.length()/aceitacao_maxima_client;
+    int modulo=mensagem.length()-num_partes*aceitacao_maxima_client;
+    int minimo,maximo;
+    for(int i=0; i<num_partes+1; i++)
     {
-        mensagem_unsigned[i]=(unsigned char) mensagem[i];
+        if(modulo!=0 || i!=num_partes)
+        {
+            unsigned char* mensagem_unsigned= new unsigned char[aceitacao_maxima_client];
+
+            minimo=i*aceitacao_maxima_client;
+            if(i!=num_partes)
+                maximo=(i+1)*aceitacao_maxima_client-1;
+            else
+                maximo=mensagem.length()-1;
+
+            for(int j=0; j<=aux_mensagem.length(); j++)
+            {
+                mensagem_unsigned[j]=(unsigned char)aux_mensagem[j];
+            }
+
+            // envia de volta o buffer recebido como um echo
+            std::cout<<"O que vou enviar:"<<std::endl;
+            std::cout<<mensagem_unsigned<<std::endl;
+            if (send(clientSockfd, mensagem_unsigned, aceitacao_maxima_client, 0) == -1)
+            {
+                perror("send");
+            }
+
+        }
 
     }
-    // envia de volta o buffer recebido como um echo
-    std::cout<<"O que vou enviar:"<<std::endl;
 
-    std::cout<<mensagem_unsigned<<std::endl;
-    if (send(clientSockfd, mensagem_unsigned, MAX_BYTES, 0) == -1)
-    {
-        perror("send");
-    }
+
+
 }
 
 
@@ -85,7 +106,8 @@ int connection(int clientSockfd)
             arquivo.open(pasta_temporaria+"index.html");
 
         }
-        else{
+        else
+        {
             arquivo.open(pasta_temporaria+request.getURL());
         }
 
