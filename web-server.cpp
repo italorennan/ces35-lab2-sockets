@@ -30,6 +30,7 @@ void enviar_mensagem(int clientSockfd,std::string mensagem)
     int num_partes=mensagem.length()/aceitacao_maxima_client;
     int modulo=mensagem.length()-num_partes*aceitacao_maxima_client;
     int minimo,maximo;
+    std::string aux_mensagem;
     for(int i=0; i<num_partes+1; i++)
     {
         if(modulo!=0 || i!=num_partes)
@@ -42,6 +43,9 @@ void enviar_mensagem(int clientSockfd,std::string mensagem)
             else
                 maximo=mensagem.length()-1;
 
+            std::string aux_mensagem=mensagem.substr(minimo,maximo-minimo+1);
+            std::cout<<aux_mensagem.length()<<std::endl;
+
             for(int j=0; j<=aux_mensagem.length(); j++)
             {
                 mensagem_unsigned[j]=(unsigned char)aux_mensagem[j];
@@ -49,6 +53,7 @@ void enviar_mensagem(int clientSockfd,std::string mensagem)
 
             // envia de volta o buffer recebido como um echo
             std::cout<<"O que vou enviar:"<<std::endl;
+
             std::cout<<mensagem_unsigned<<std::endl;
             if (send(clientSockfd, mensagem_unsigned, aceitacao_maxima_client, 0) == -1)
             {
