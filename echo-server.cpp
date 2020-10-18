@@ -79,7 +79,15 @@ int connection(int clientSockfd)
         HTTPRes response;
         response.setServer(nome_host);
 
-        arquivo.open(pasta_temporaria+request.getURL());
+        if(request.getURL()=="/")
+        {
+            printf("Index");
+            arquivo.open(pasta_temporaria+"index.html");
+
+        }
+        else{
+            arquivo.open(pasta_temporaria+request.getURL());
+        }
 
         if(arquivo)
         {
