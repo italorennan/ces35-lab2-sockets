@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fstream>
-
+#include <thread>
 
 #include "HTTPReq.hpp"
 #include "HTTPRes.hpp"
@@ -16,20 +16,86 @@
 #include <iostream>
 #include <sstream>
 
-
-
-
-
-
-
 const int MAX_BYTES=200;
+
+// Estabelecer conexão em multithread
+int connection(int clientSockfd) {
+    // faz leitura e escrita dos dados da conexao
+    // utiliza um buffer de 20 bytes (char)
+    bool isEnd = false;
+    char buf[MAX_BYTES] = {0};
+    unsigned char* unsigned_buf= new unsigned char[sizeof(buf)];
+
+    std::ifstream arquivo;
+    std::stringstream  leitura_arquivo;
+
+    while (!isEnd)
+    {
+        // zera a memoria do buffer
+        memset(buf, '\0', sizeof(buf));
+
+        // recebe ate MAX_BYTES bytes do cliente remoto
+        if (recv(clientSockfd, unsigned_buf, MAX_BYTES, 0) == -1)
+        {
+            perror("recv");
+            return 5;
+        }
+        /*for (int i = 0; i < sizeof(buf); i++)
+        {
+            unsigned_buf[i] = (unsigned char) buf[i];
+        }*/
+
+
+        HTTPReq request;
+        request.parse(unsigned_buf);
+
+        HTTPRes response;
+        response.setServer(request.getHost());
+
+        arquivo.open(request.getURL());
+
+        if(arquivo)
+            response.setStatus(200);
+        else
+            response.setStatus(404);
+
+        std::cout<<response.getStatus()<<std::endl;
+
+        unsigned_buf= response.encode();
+
+        for (int i = 0; i < sizeof(unsigned_buf); i++)
+        {
+            buf[i] = (char) unsigned_buf[i];
+        }
+
+        if (send(clientSockfd, unsigned_buf, MAX_BYTES, 0) == -1)
+        {
+            perror("send");
+            return 6;
+        }
+
+
+        if(arquivo)
+        {
+            leitura_arquivo << arquivo.rdbuf(); //read the file
+            std::string mensagem = leitura_arquivo.str(); //str holds the content of the file
+            std::cout<<"O QUE ELE VAI ENVIAR: ";
+            std::cout<<mensagem<<std::endl;
+
+            if (send(clientSockfd, mensagem.c_str(), mensagem.size(), 0) == -1) {
+            perror("send");
+            return 7;
+            }
+
+        }
+
+
+    }
+    close(clientSockfd);
+}
 
 int main()
 {
-    std::string nome_host_aux="localhost";
-    int port=3000;
-    std::string nome_host=nome_host_aux+":"+std::to_string(port);
-    std::string pasta_temporaria="temp/";
     // cria um socket para IPv4 e usando protocolo de transporte TCP
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -70,109 +136,30 @@ int main()
         return 3;
     }
 
-    // aceitar a conexao TCP
-    // verificar que sockfd e clientSockfd sao sockets diferentes
-    // sockfd eh a "socket de boas vindas"
-    // clientSockfd eh a "socket diretamente com o cliente"
-    struct sockaddr_in clientAddr;
-    socklen_t clientAddrSize = sizeof(clientAddr);
-    int clientSockfd = accept(sockfd, (struct sockaddr*)&clientAddr, &clientAddrSize);
+    // Estabelecer conexoes TCP em loop infinito, ate o processo ser encerrado
+    while(true) {
+        // aceitar a conexao TCP
+        // verificar que sockfd e clientSockfd sao sockets diferentes
+        // sockfd eh a "socket de boas vindas"
+        // clientSockfd eh a "socket diretamente com o cliente"
+        struct sockaddr_in clientAddr;
+        socklen_t clientAddrSize = sizeof(clientAddr);
+        int clientSockfd = accept(sockfd, (struct sockaddr*)&clientAddr, &clientAddrSize);    
 
-    if (clientSockfd == -1)
-    {
-        perror("accept");
-        return 4;
-    }
-
-    // usa um vetor de caracteres para preencher o endereço IP do cliente
-    char ipstr[INET_ADDRSTRLEN] = {'\0'};
-    inet_ntop(clientAddr.sin_family, &clientAddr.sin_addr, ipstr, sizeof(ipstr));
-    std::cout << "Accept a connection from: " << ipstr << ":" <<
-              ntohs(clientAddr.sin_port) << std::endl;
-
-    // faz leitura e escrita dos dados da conexao
-    // utiliza um buffer de 20 bytes (char)
-    bool isEnd = false;
-    char buf[MAX_BYTES] = {0};
-    unsigned char* unsigned_buf= new unsigned char[sizeof(buf)];
-
-
-    std::ifstream arquivo;
-    std::stringstream  leitura_arquivo;
-
-
-
-
-
-    while (!isEnd)
-    {
-        // zera a memoria do buffer
-        memset(buf, '\0', sizeof(buf));
-
-        // recebe ate MAX_BYTES bytes do cliente remoto
-        if (recv(clientSockfd, buf, MAX_BYTES, 0) == -1)
-        {
-            perror("recv");
-            return 5;
-        }
-        for (int i = 0; i < sizeof(buf); i++)
-        {
-            unsigned_buf[i] = (unsigned char) buf[i];
-        }
-
-
-        HTTPReq request;
-        request.parse(unsigned_buf);
-
-        HTTPRes response;
-        response.setServer(nome_host);
-
-        arquivo.open(pasta_temporaria+request.getURL());
-
-        if(arquivo){
-            response.setStatus(200);
-            leitura_arquivo << arquivo.rdbuf(); //read the file
-            std::string mensagem = leitura_arquivo.str(); //str holds the content of the file
-            std::cout<<sizeof(mensagem)<<std::endl;
-            response.setLength(sizeof(mensagem));
-            }
-        else
-        {
-
-            response.setStatus(404);
-        }
-
-
-        unsigned_buf= response.encode();
-        std::cout<<unsigned_buf<<std::endl;
-
-
-        for (int i = 0; i < sizeof(unsigned_buf); i++)
-        {
-            buf[i] = (char) unsigned_buf[i];
-        }
-
-        if (send(clientSockfd, buf, MAX_BYTES, 0) == -1)
-        {
-            perror("send");
-            return 6;
-        }
-
-
-        if(arquivo)
-        {
-            std::cout<<"O QUE ELE VAI ENVIAR: ";
-            std::cout<<leitura_arquivo.str()<<std::endl;
-
-            if (send(sockfd, leitura_arquivo.str().c_str(), leitura_arquivo.str().size(), 0) == -1) {
-            perror("send");
+        if (clientSockfd == -1) {
+            perror("accept");
             return 4;
-            }
-
         }
 
+        // usa um vetor de caracteres para preencher o endereço IP do cliente
+        char ipstr[INET_ADDRSTRLEN] = {'\0'};
+        inet_ntop(clientAddr.sin_family, &clientAddr.sin_addr, ipstr, sizeof(ipstr));
+        std::cout << "Accept a connection from: " << ipstr << ":" <<
+                ntohs(clientAddr.sin_port) << std::endl;    
 
+        // Criar thread para nova conexão TCP
+        std::thread(connection, clientSockfd).detach();
     }
-    close(clientSockfd);
+
     return 0;
 }
